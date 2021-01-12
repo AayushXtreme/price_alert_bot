@@ -49,7 +49,7 @@ def alert(asset, old_price, new_price, time):
     try:
         playsound(file)
     except:                                                                                                                                                                                                                                          
-        ts = f'termux-notification -t "{coin}(inr) {new_price}"'                                   
+        ts = f'termux-notification -t "{asset}(inr) {new_price}"'                                   
         os.system(ts) 
 
 
