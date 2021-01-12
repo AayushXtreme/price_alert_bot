@@ -49,7 +49,7 @@ def alert(asset, old_price, new_price, time):
     try:
         playsound(file)
     except:                                                                                                                                                                                                                                          
-        ts = f'termux-notification -t "Bitcoin(USD) {new_price}"'                                   
+        ts = f'termux-notification -t "{coin}(inr) {new_price}"'                                   
         os.system(ts) 
 
 
@@ -61,7 +61,7 @@ def save(df, file='alerts.csv'):
     ## update the file in cloud
 
 
-def main(url, df, coin='ETH', wait=5):
+def main(url, df, coin='BTC', wait=5):
     try:
         ## time loop 
         while True:
