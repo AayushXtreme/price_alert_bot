@@ -1,7 +1,8 @@
 ## Using unocoin api 
 
-from requests import Response, Session
+from requests import Request, Session
 import requests, time
+from requests.api import head
 from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
 from prettytable import PrettyTable
 from datetime import datetime, timedelta
@@ -9,29 +10,64 @@ from playsound import playsound
 import pandas as pd
 import json, os
 
-
 # update params
 headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'}
 session = Session()
 session.headers.update(headers)
 
 
+# Authentication key
+# **CHANGE**
+token = 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2FwaS51bm9jb2luLmNvbS9hcGkvYXBpRG9jIiwiaWF0IjoxNjEwNDY2ODQ3LCJleHAiOjE2NDIwMDI4NDcsIm5iZiI6MTYxMDQ2Njg0NywianRpIjoiaU83eWhTN01JZ1NGamFZNyIsInN1YiI6MTI2NTg5MywiaW4iOiI0MmVlZjJiODVmZTc4NDY3YzcwZmU1NGNkZjJjMjAxMTM5MjQwN2UwYTE3NTU1YmRlZWY1MzdmMmE0NjBlOWNmIn0.OZWxubyEu6H7l__eV6TExy67CEwdmVD7iwBmsFxjlPA'
+
+
+## function run once wrapper
+def run_once(f):
+    def wrapper(*args, **kwargs):
+        if not wrapper.has_run:
+            wrapper.has_run = True
+            return f(*args, **kwargs)
+    wrapper.has_run = False
+    return wrapper
+
+
 ## get request from the url  
-def get(url, params=None):
-    print("\n....Fetching Data From API .......")
+def get(url, headers=None):
     try:
-        response = session.get(url, params=params)
+        response = session.get(url, headers=headers)
         data = json.loads(response.text)
         if 'error' in data.keys():
             raise SystemExit(data['error'])
         else:
             return data
+
     # except
     except (ConnectionError, Timeout, TooManyRedirects) as err:
         print(err)
         print("\nTrying again after some time...")
-        time.sleep(600)  ## after 10 minutes
-        return get(url, params=params)
+        time.sleep(300)  ## after 5 minutes
+        return get(url, headers=headers)
+
+
+## post request to the api 
+def post(url, data, headers=None):
+    try:
+        ## prepared requests 
+        req = Request('POST', url, data=data, headers=headers)
+        prepped = req.prepare()
+        resp = session.send(prepped)
+        data = resp.json()
+        if 'error' in data.keys():
+            raise SystemExit(data['error'])
+        else:
+            return data
+
+    # except
+    except (ConnectionError, Timeout, TooManyRedirects) as err:
+        print(err)
+        print("\nTrying again after some time...")
+        time.sleep(300)  ## after 5 minutes
+        return post(url, data=data, headers=headers)
 
 
 ## customized price alerts
@@ -53,26 +89,61 @@ def alert(asset, old_price, new_price, time):
         os.system(ts) 
 
 
+## get your crypto balance
+def balance(coin):
+    wallets = get('https://api.unocoin.com/api/wallet/', headers={'Authorization': token})['wallets']
+    for i in wallets:
+        if i['coin'] == coin:
+            return i['balance']
+
+
+## current rate of the coin 
+def current_rate(coin):
+    price_json = get('https://api.unocoin.com/api/trades/in/all/all')
+    return price_json[coin]
+
+
 ## saving data and finishing changes
-def save(df, file='alerts.csv'):
+def save(df, file='prices.csv'):
     print("\nSaving the data...")
     df.to_csv(file, index=False)
     print("Done.")
     ## update the file in cloud
 
 
-def main(url, df, coin='BTC', wait=5):
+## Emergency trigger for buying and selling crypto
+@run_once
+def trigger_sell(payload):
+    res = post('https://api.unocoin.com/api/trading/sell-btc', headers={'Authorization': token}, data=payload)
+    print(res)
+    print("\nWallet balance...")
+    print(payload['coin'] + ' ' + balance(payload['coin']))
+    print('INR' + ' ' + balance('INR'))
+
+@run_once
+def trigger_buy(payload):
+    res = post('https://api.unocoin.com/api/trading/buy-btc', headers={'Authorization': token}, data=payload)
+    print(res)
+    print("\nWallet balance...")
+    print(payload['coin'] + ' ' + balance(payload['coin']))
+    print('INR' + ' ' + balance('INR'))
+
+
+
+def bot(coin='BTC', wait=5, trade_instructions=None):
+    print("\n....Fetching Data From API .......")
+
+    # historical stored coin prices
+    df = pd.read_csv('prices.csv')
     try:
         ## time loop 
         while True:
-            # api request
-            json = get(url)
             now = datetime.now()
             
             # prices
             print("\nComparing prices...")
             old_price = float(df.loc[df['coin']==coin].iloc[-1]['price(inr)'])
-            new_price = float(json[coin]['buying_price'])
+            new_price = float(current_rate(coin)['selling_price'])
 
             # prices compare
             if new_price > old_price:
@@ -81,6 +152,10 @@ def main(url, df, coin='BTC', wait=5):
             # updating data
             data = {'coin': coin, 'price(inr)': new_price, 'last_updated': now.strftime("%Y-%m-%d %H:%M:%S")}
             df = df.append(data, ignore_index=True)
+
+            # trading activities
+            if trade_instructions is not None:
+                pass
             
             # Api update after desired minutes
             print("===============================")
@@ -97,8 +172,9 @@ def main(url, df, coin='BTC', wait=5):
         save(df)
         
 
-url = 'https://api.unocoin.com/api/trades/in/all/all'
-payload = {}
-files = []
-prices = pd.read_csv('alerts.csv')
-main(url, prices)
+
+# obj = post('https://api.unocoin.com/api/trading/sell-btc', data = {'coin': 'USDT', 'btc_value': 1.25000000, 'inr_value': 100.00, 'fee': 0.0, 'tax': 18, 'exchange_rate': 80, 'total_amount': 100}, headers={'Authorization': token})
+# print(obj)
+
+bot()
+
