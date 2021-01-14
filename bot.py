@@ -136,6 +136,15 @@ def trigger_sell(payload):
     print(payload['coin'] + ' ' + balance(payload['coin'])['balance'])
     print('INR' + ' ' + balance('INR')['balance'])
 
+@run_once
+def trigger_buy(payload):
+    res = post('https://api.unocoin.com/api/trading/buy-btc', headers={'Authorization': token}, data=payload)
+    print(res)
+    print("\nWallet balance...")
+    print(payload['coin'] + ' ' + balance(payload['coin'])['balance'])
+    print('INR' + ' ' + balance('INR')['balance'])
+
+
 
 def bot(coin='BTC', wait=5, trade_instructions=None):
     print("\n....Fetching Data From API .......")
@@ -164,11 +173,13 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 
             # trading activities
             if trade_instructions is not None:
-                min = trade_instructions['trigger_range'][0]
-                max = trade_instructions['trigger_range'][1]
-                if coin == trade_instructions['coin'] and new_price > min and new_price < max:    # verify coin 
-                    payload = current_rate(coin, amt=trade_instructions['value'], action=trade_instructions['action'])
-                    trigger_sell(payload)
+                min, max = trade_instructions['trigger_range'][0], trade_instructions['trigger_range'][1]
+                payload = current_rate(coin, amt=trade_instructions['value'], action=trade_instructions['action'])
+                if coin == trade_instructions['coin'] and payload['exchange_rate'] > min and payload['exchange_rate'] < max:    # verify coin 
+                    if trade_instructions['action'] == 'sell':
+                        trigger_sell(payload)
+                    if trade_instructions['action'] == 'buy':
+                        trigger_buy(payload)
             
             # Api update after desired minutes
             print("===============================")
@@ -180,16 +191,16 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 
     except KeyboardInterrupt:
         save(df)
-    # except:
-    #     print("\nSome error occurred!!!")
-    #     save(df)
+    except:
+        print("\nSome error occurred!!!")
+        save(df)
         
 
 config = {
     'coin': 'ETH',
-    'trigger_range': [90000, 96000],
-    'action': 'sell',
+    'trigger_range': [90000, 120000],
+    'action': 'buy',
     'value': 100
 }
 
-bot(coin='BTC')
+bot(coin='ETH')
