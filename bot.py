@@ -94,13 +94,29 @@ def balance(coin):
     wallets = get('https://api.unocoin.com/api/wallet/', headers={'Authorization': token})['wallets']
     for i in wallets:
         if i['coin'] == coin:
-            return i['balance']
+            return i
 
 
 ## current rate of the coin 
-def current_rate(coin):
-    price_json = get('https://api.unocoin.com/api/trades/in/all/all')
-    return price_json[coin]
+def current_rate(coin, amt=0, action='sell'):
+    price_json = get('https://api.unocoin.com/api/trades/in/all/all')[coin]
+    price = fee = tax = total_amt = 0
+
+    ## for selling
+    if action.lower() == 'sell':
+        price = float(price_json['selling_price'])
+        fee = float(price_json['selling_price_fee'])
+        tax = float(price_json['selling_price_tax'])
+        coin_fee = (fee/100)*amt
+        total_amt = round(amt - (coin_fee + (tax/100)*coin_fee), 2)
+    ## for buying
+    elif action.lower() == 'buy':
+        price = float(price_json['buying_price'])
+        fee = float(price_json['buying_price_fee'])
+        tax = float(price_json['buying_price_tax'])
+        coin_fee = (fee/100)*amt
+        total_amt = round(amt + (coin_fee + (tax/100)*coin_fee), 2)
+    return {'coin': coin, 'btc_value': float(amt / price), 'inr_value': amt, 'fee': fee, 'tax': tax, 'exchange_rate': price, 'total_amount': total_amt}
 
 
 ## saving data and finishing changes
@@ -117,17 +133,8 @@ def trigger_sell(payload):
     res = post('https://api.unocoin.com/api/trading/sell-btc', headers={'Authorization': token}, data=payload)
     print(res)
     print("\nWallet balance...")
-    print(payload['coin'] + ' ' + balance(payload['coin']))
-    print('INR' + ' ' + balance('INR'))
-
-@run_once
-def trigger_buy(payload):
-    res = post('https://api.unocoin.com/api/trading/buy-btc', headers={'Authorization': token}, data=payload)
-    print(res)
-    print("\nWallet balance...")
-    print(payload['coin'] + ' ' + balance(payload['coin']))
-    print('INR' + ' ' + balance('INR'))
-
+    print(payload['coin'] + ' ' + balance(payload['coin'])['balance'])
+    print('INR' + ' ' + balance('INR')['balance'])
 
 
 def bot(coin='BTC', wait=5, trade_instructions=None):
@@ -139,11 +146,13 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
         ## time loop 
         while True:
             now = datetime.now()
+            # get the coin info
+            price_json = current_rate(coin)
             
             # prices
             print("\nComparing prices...")
             old_price = float(df.loc[df['coin']==coin].iloc[-1]['price(inr)'])
-            new_price = float(current_rate(coin)['selling_price'])
+            new_price = float(price_json['exchange_rate'])
 
             # prices compare
             if new_price > old_price:
@@ -155,7 +164,11 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 
             # trading activities
             if trade_instructions is not None:
-                pass
+                min = trade_instructions['trigger_range'][0]
+                max = trade_instructions['trigger_range'][1]
+                if coin == trade_instructions['coin'] and new_price > min and new_price < max:    # verify coin 
+                    payload = current_rate(coin, amt=trade_instructions['value'], action=trade_instructions['action'])
+                    trigger_sell(payload)
             
             # Api update after desired minutes
             print("===============================")
@@ -167,14 +180,16 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 
     except KeyboardInterrupt:
         save(df)
-    except:
-        print("\nSome error occurred!!!")
-        save(df)
+    # except:
+    #     print("\nSome error occurred!!!")
+    #     save(df)
         
 
+config = {
+    'coin': 'ETH',
+    'trigger_range': [90000, 96000],
+    'action': 'sell',
+    'value': 100
+}
 
-# obj = post('https://api.unocoin.com/api/trading/sell-btc', data = {'coin': 'USDT', 'btc_value': 1.25000000, 'inr_value': 100.00, 'fee': 0.0, 'tax': 18, 'exchange_rate': 80, 'total_amount': 100}, headers={'Authorization': token})
-# print(obj)
-
-bot()
-
+bot(coin='ETH')
