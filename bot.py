@@ -192,4 +192,4 @@ config = {
     'value': 100
 }
 
-bot(coin='ETH')
+bot(coin='BTC')
