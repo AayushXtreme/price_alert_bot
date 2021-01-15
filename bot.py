@@ -156,7 +156,7 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
             df = df.append(data, ignore_index=True)
 
             # trading activities
-            if trade_instructions is not None:
+            if trade_instructions is not None or len(trade_instructions)!=0:
                 done = []
                 for i, trigger in enumerate(trade_instructions):
                     min, max = trigger['trigger_range'][0], trigger['trigger_range'][1]
@@ -185,18 +185,14 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 
 
 
-
+## config params
 triggers = [{
     'coin': 'ETH',
-    'trigger_range': [100000, 120000],
-    'action': 'buy',
-    'value': 50
-}, 
-{
-    'coin': 'BTC',
-    'trigger_range': [2500000, 3000000],
+    'trigger_range': [85000, 90000],
     'action': 'sell',
-    'value': 100
+    'value': 50
 }]
 
+# executing the bot
 bot(coin='BTC', trade_instructions=None)
+
