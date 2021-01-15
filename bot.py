@@ -127,9 +127,9 @@ def save(df, file='prices.csv'):
     ## update the file in cloud
 
 
-## Emergency trigger for buying and selling crypto
+## buying and selling crypto  
 @run_once
-def trigger(payload, action='sell'):
+def transaction(payload, action='sell'):
     if action.lower() == 'sell':
         res = post('https://api.unocoin.com/api/trading/sell-btc', headers={'Authorization': token}, data=payload)
         print(res)
@@ -169,11 +169,11 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 
             # trading activities
             if trade_instructions is not None:
-                for config in trade_instructions:
-                    min, max = config['trigger_range'][0], config['trigger_range'][1]
-                    payload = current_rate(config['coin'], amt=config['value'], action=config['action'])
+                for trigger in trade_instructions:
+                    min, max = trigger['trigger_range'][0], trigger['trigger_range'][1]
+                    payload = current_rate(trigger['coin'], amt=trigger['value'], action=trigger['action'])
                     if payload['exchange_rate'] > min and payload['exchange_rate'] < max:    # verify coin 
-                        trigger(payload, action=config['action'])
+                        transaction(payload, action=trigger['action'])
             
             
             # Api update after desired minutes
@@ -194,7 +194,7 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 triggers = [{
     'coin': 'ETH',
     'trigger_range': [90000, 120000],
-    'action': 'buy',
+    'action': 'sell',
     'value': 100
 }, 
 {
