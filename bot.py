@@ -129,20 +129,16 @@ def save(df, file='prices.csv'):
 
 ## Emergency trigger for buying and selling crypto
 @run_once
-def trigger_sell(payload):
-    res = post('https://api.unocoin.com/api/trading/sell-btc', headers={'Authorization': token}, data=payload)
-    print(res)
+def trigger(payload, action='sell'):
+    if action.lower() == 'sell':
+        res = post('https://api.unocoin.com/api/trading/sell-btc', headers={'Authorization': token}, data=payload)
+        print(res)
+    elif action.lower() == 'buy':
+        res = post('https://api.unocoin.com/api/trading/buy-btc', headers={'Authorization': token}, data=payload)
+        print(res)        
     print("\nWallet balance...")
     print(payload['coin'] + ' ' + balance(payload['coin'])['balance'])
-    print('INR' + ' ' + balance('INR')['balance'])
-
-@run_once
-def trigger_buy(payload):
-    res = post('https://api.unocoin.com/api/trading/buy-btc', headers={'Authorization': token}, data=payload)
-    print(res)
-    print("\nWallet balance...")
-    print(payload['coin'] + ' ' + balance(payload['coin'])['balance'])
-    print('INR' + ' ' + balance('INR')['balance'])
+    print('INR' + ' ' + balance('INR')['balance'])    
 
 
 
@@ -173,13 +169,12 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 
             # trading activities
             if trade_instructions is not None:
-                min, max = trade_instructions['trigger_range'][0], trade_instructions['trigger_range'][1]
-                payload = current_rate(coin, amt=trade_instructions['value'], action=trade_instructions['action'])
-                if coin == trade_instructions['coin'] and payload['exchange_rate'] > min and payload['exchange_rate'] < max:    # verify coin 
-                    if trade_instructions['action'] == 'sell':
-                        trigger_sell(payload)
-                    if trade_instructions['action'] == 'buy':
-                        trigger_buy(payload)
+                for config in trade_instructions:
+                    min, max = config['trigger_range'][0], config['trigger_range'][1]
+                    payload = current_rate(config['coin'], amt=config['value'], action=config['action'])
+                    if payload['exchange_rate'] > min and payload['exchange_rate'] < max:    # verify coin 
+                        trigger(payload, action=config['action'])
+            
             
             # Api update after desired minutes
             print("===============================")
@@ -196,11 +191,18 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
         save(df)
         
 
-config = {
+triggers = [{
     'coin': 'ETH',
     'trigger_range': [90000, 120000],
     'action': 'buy',
     'value': 100
-}
+}, 
+{
+    'coin': 'BTC',
+    'trigger_range': [2500000, 3000000],
+    'action': 'sell',
+    'value': 100
+}]
 
-bot(coin='ETH')
+bot(coin='BTC', trade_instructions=None)
+
