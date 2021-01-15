@@ -21,16 +21,6 @@ session.headers.update(headers)
 token = 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2FwaS51bm9jb2luLmNvbS9hcGkvYXBpRG9jIiwiaWF0IjoxNjEwNDY2ODQ3LCJleHAiOjE2NDIwMDI4NDcsIm5iZiI6MTYxMDQ2Njg0NywianRpIjoiaU83eWhTN01JZ1NGamFZNyIsInN1YiI6MTI2NTg5MywiaW4iOiI0MmVlZjJiODVmZTc4NDY3YzcwZmU1NGNkZjJjMjAxMTM5MjQwN2UwYTE3NTU1YmRlZWY1MzdmMmE0NjBlOWNmIn0.OZWxubyEu6H7l__eV6TExy67CEwdmVD7iwBmsFxjlPA'
 
 
-## function run once wrapper
-def run_once(f):
-    def wrapper(*args, **kwargs):
-        if not wrapper.has_run:
-            wrapper.has_run = True
-            return f(*args, **kwargs)
-    wrapper.has_run = False
-    return wrapper
-
-
 ## get request from the url  
 def get(url, headers=None):
     try:
@@ -128,7 +118,6 @@ def save(df, file='prices.csv'):
 
 
 ## buying and selling crypto  
-@run_once
 def transaction(payload, action='sell'):
     if action.lower() == 'sell':
         res = post('https://api.unocoin.com/api/trading/sell-btc', headers={'Authorization': token}, data=payload)
@@ -139,7 +128,6 @@ def transaction(payload, action='sell'):
     print("\nWallet balance...")
     print(payload['coin'] + ' ' + balance(payload['coin'])['balance'])
     print('INR' + ' ' + balance('INR')['balance'])    
-
 
 
 def bot(coin='BTC', wait=5, trade_instructions=None):
@@ -169,12 +157,17 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 
             # trading activities
             if trade_instructions is not None:
-                for trigger in trade_instructions:
+                done = []
+                for i, trigger in enumerate(trade_instructions):
                     min, max = trigger['trigger_range'][0], trigger['trigger_range'][1]
                     payload = current_rate(trigger['coin'], amt=trigger['value'], action=trigger['action'])
                     if payload['exchange_rate'] > min and payload['exchange_rate'] < max:    # verify coin 
                         transaction(payload, action=trigger['action'])
-            
+                        done.append(i)
+                if len(done) != 0:
+                    for index in sorted(done, reverse=True):
+                        del trade_instructions[index]
+                   
             
             # Api update after desired minutes
             print("===============================")
@@ -189,13 +182,15 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
     except:
         print("\nSome error occurred!!!")
         save(df)
-        
+
+
+
 
 triggers = [{
     'coin': 'ETH',
-    'trigger_range': [90000, 120000],
-    'action': 'sell',
-    'value': 100
+    'trigger_range': [100000, 120000],
+    'action': 'buy',
+    'value': 50
 }, 
 {
     'coin': 'BTC',
@@ -205,4 +200,3 @@ triggers = [{
 }]
 
 bot(coin='BTC', trade_instructions=None)
-
