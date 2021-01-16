@@ -90,23 +90,22 @@ def balance(coin):
 ## current rate of the coin 
 def current_rate(coin, amt=0, action='sell'):
     price_json = get('https://api.unocoin.com/api/trades/in/all/all')[coin]
-    price = fee = tax = total_amt = 0
 
     ## for selling
     if action.lower() == 'sell':
         price = float(price_json['selling_price'])
-        fee = float(price_json['selling_price_fee'])
-        tax = float(price_json['selling_price_tax'])
-        coin_fee = (fee/100)*amt
-        total_amt = round(amt - (coin_fee + (tax/100)*coin_fee), 2)
+        fee = (float(price_json['selling_price_fee']) / 100) * amt
+        tax = (float(price_json['selling_price_tax']) / 100) * fee
+        total_amt = round(amt - (fee + tax), 2)
+        return {'coin': coin, 'payment_coin': 'INR', 'btc_value': round(float(amt / price), 8), 'inr_destination': 'inr_wallet', 'inr_value': amt, 'fee': fee, 'tax': round(tax, 2), 'exchange_rate': price, 'total_amount': total_amt}
+
     ## for buying
-    elif action.lower() == 'buy':
+    if action.lower() == 'buy':
         price = float(price_json['buying_price'])
-        fee = float(price_json['buying_price_fee'])
-        tax = float(price_json['buying_price_tax'])
-        coin_fee = (fee/100)*amt
-        total_amt = round(amt + (coin_fee + (tax/100)*coin_fee), 2)
-    return {'coin': coin, 'btc_value': float(amt / price), 'inr_value': amt, 'fee': fee, 'tax': tax, 'exchange_rate': price, 'total_amount': total_amt}
+        fee = (float(price_json['buying_price_fee']) / 100) * amt
+        tax = (float(price_json['buying_price_tax']) / 100) * fee
+        total_amt = round(amt + (fee + tax), 2)
+        return {'coin': coin, 'payment_coin': 'INR', 'btc': round(float(amt/price), 8), 'payment_type': 'inr_wallet', 'total_amount': total_amt, 'tax': round(tax, 2), 'fee': fee, 'exchange_rate': price, 'inr': amt}
 
 
 ## saving data and finishing changes
@@ -156,7 +155,7 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
             df = df.append(data, ignore_index=True)
 
             # trading activities
-            if trade_instructions is not None or len(trade_instructions)!=0:
+            if trade_instructions is not None:
                 done = []
                 for i, trigger in enumerate(trade_instructions):
                     min, max = trigger['trigger_range'][0], trigger['trigger_range'][1]
@@ -179,20 +178,16 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 
     except KeyboardInterrupt:
         save(df)
-    except:
-        print("\nSome error occurred!!!")
-        save(df)
-
 
 
 ## config params
 triggers = [{
     'coin': 'ETH',
-    'trigger_range': [85000, 90000],
+    'trigger_range': [94000, 95000],
     'action': 'sell',
-    'value': 50
+    'value': 200
 }]
 
 # executing the bot
-bot(coin='BTC', trade_instructions=None)
+bot(coin='ETH', trade_instructions=triggers)
 
