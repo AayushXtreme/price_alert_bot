@@ -88,8 +88,12 @@ def balance(coin):
 
 
 ## current rate of the coin 
-def current_rate(coin, amt=0, action='sell'):
+def current_rate(coin, amt=0, action=None):
     price_json = get('https://api.unocoin.com/api/trades/in/all/all')[coin]
+
+    # If not selling
+    if action is None:
+        return price_json
 
     ## for selling
     if action.lower() == 'sell':
@@ -117,18 +121,26 @@ def save(df, file='prices.csv'):
 
 
 ## buying and selling crypto  
-def transaction(payload, action='sell'):
+def transaction(payload, action=None):
+    if action is None:
+        print("\nTransaction Failed!!!")
+    # post request for selling
     if action.lower() == 'sell':
         res = post('https://api.unocoin.com/api/trading/sell-btc', headers={'Authorization': token}, data=payload)
         print(res)
-    elif action.lower() == 'buy':
+
+    # post request for buying
+    if action.lower() == 'buy':
         res = post('https://api.unocoin.com/api/trading/buy-btc', headers={'Authorization': token}, data=payload)
         print(res)        
+    
+    # print balance
     print("\nWallet balance...")
     print(payload['coin'] + ' ' + balance(payload['coin'])['balance'])
     print('INR' + ' ' + balance('INR')['balance'])    
 
 
+# bot
 def bot(coin='BTC', wait=5, trade_instructions=None):
     print("\n....Fetching Data From API .......")
 
@@ -143,15 +155,15 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
             
             # prices
             print("\nComparing prices...")
-            old_price = float(df.loc[df['coin']==coin].iloc[-1]['price(inr)'])
-            new_price = float(price_json['exchange_rate'])
+            old_price = df.loc[df['coin']==coin].iloc[-1]['selling_price']
+            new_prices = [float(price_json['buying_price']), float(price_json['selling_price'])]
 
             # prices compare
-            if new_price > old_price:
-                alert(coin, old_price, new_price, now.strftime("%Y-%m-%d %H:%M:%S"))
+            if new_prices[1] > old_price:
+                alert(coin, old_price, new_prices[1], now.strftime("%Y-%m-%d %H:%M:%S"))
             
             # updating data
-            data = {'coin': coin, 'price(inr)': new_price, 'last_updated': now.strftime("%Y-%m-%d %H:%M:%S")}
+            data = {'coin': coin, 'buying_price': new_prices[0], 'selling_price': new_prices[1], 'last_updated': now.strftime("%Y-%m-%d %H:%M:%S")}
             df = df.append(data, ignore_index=True)
 
             # trading activities
@@ -183,11 +195,10 @@ def bot(coin='BTC', wait=5, trade_instructions=None):
 ## config params
 triggers = [{
     'coin': 'ETH',
-    'trigger_range': [94000, 95000],
+    'trigger_range': [95000, 100000],
     'action': 'sell',
     'value': 200
 }]
 
-# executing the bot
-bot(coin='ETH', trade_instructions=triggers)
-
+# # executing the bot
+bot(coin='ETH', trade_instructions=None)
