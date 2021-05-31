@@ -18,7 +18,7 @@ session.headers.update(headers)
 
 # Authentication key
 # **CHANGE**
-token = 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL2FwaS51bm9jb2luLmNvbS9hcGkvYXBpRG9jIiwiaWF0IjoxNjEwNDY2ODQ3LCJleHAiOjE2NDIwMDI4NDcsIm5iZiI6MTYxMDQ2Njg0NywianRpIjoiaU83eWhTN01JZ1NGamFZNyIsInN1YiI6MTI2NTg5MywiaW4iOiI0MmVlZjJiODVmZTc4NDY3YzcwZmU1NGNkZjJjMjAxMTM5MjQwN2UwYTE3NTU1YmRlZWY1MzdmMmE0NjBlOWNmIn0.OZWxubyEu6H7l__eV6TExy67CEwdmVD7iwBmsFxjlPA'
+token = 'your key'
 
 
 ## get request from the url  
